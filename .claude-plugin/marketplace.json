@@ -1,0 +1,17 @@
+{
+  "name": "introspector",
+  "owner": {
+    "name": "fingerskier"
+  },
+  "metadata": {
+    "description": "Mindmap and guided-tour generator for repos and document sets.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "introspector",
+      "source": ".",
+      "description": "Build a mindmap and guided tour of a repo or document set."
+    }
+  ]
+}

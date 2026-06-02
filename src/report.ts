@@ -1,0 +1,189 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { toMermaid } from './mindmap.ts';
+import type { Inventory, ModuleNode } from './types.ts';
+
+function pct(part: number, whole: number): string {
+  if (whole === 0) return '0%';
+  return `${Math.round((part / whole) * 100)}%`;
+}
+
+function topLangTable(languages: Record<string, number>): string {
+  const rows = Object.entries(languages).sort((a, b) => b[1] - a[1]);
+  if (rows.length === 0) return '_No recognised languages._\n';
+  const lines = ['| Language | Files |', '| --- | --- |'];
+  for (const [lang, count] of rows) lines.push(`| ${lang} | ${count} |`);
+  return lines.join('\n') + '\n';
+}
+
+function moduleTable(modules: ModuleNode[]): string {
+  if (modules.length === 0) return '_No modules detected._\n';
+  const lines = [
+    '| Module | Files | LOC | Code | Tests | Top languages |',
+    '| --- | ---: | ---: | ---: | ---: | --- |',
+  ];
+  for (const m of modules) {
+    const langs = Object.entries(m.languages)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3)
+      .map(([l]) => l)
+      .join(', ');
+    lines.push(
+      `| \`${m.path}\` | ${m.fileCount} | ${m.loc} | ${m.codeFiles.length} | ${m.testFiles.length} | ${langs} |`,
+    );
+  }
+  return lines.join('\n') + '\n';
+}
+
+function testTable(inv: Inventory): string {
+  if (inv.tests.length === 0) {
+    return '_No test files detected._ A guided tour should flag this as a risk.\n';
+  }
+  const lines = ['| Test file | Likely target(s) |', '| --- | --- |'];
+  for (const t of inv.tests) {
+    const targets =
+      t.targets.length > 0
+        ? t.targets.map((x) => `\`${x}\``).join(', ')
+        : '_unmatched_';
+    lines.push(`| \`${t.test}\` | ${targets} |`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+function docOutline(inv: Inventory): string {
+  if (inv.docs.length === 0) return '_No documentation files detected._\n';
+  const out: string[] = [];
+  for (const doc of inv.docs) {
+    out.push(`- **${doc.title}** — \`${doc.path}\``);
+    for (const h of doc.headings) {
+      if (h.level < 2 || h.level > 4) continue;
+      out.push(`${'  '.repeat(h.level - 1)}- ${h.title}`);
+    }
+  }
+  return out.join('\n') + '\n';
+}
+
+/** Pick likely entry points to seed a guided tour. */
+function entryPoints(inv: Inventory): string[] {
+  const candidates: string[] = [];
+  const byPath = new Set(inv.files.map((f) => f.path));
+  const pkgPath = 'package.json';
+  if (byPath.has(pkgPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(path.join(inv.root, pkgPath), 'utf8'));
+      const add = (v: unknown) => {
+        if (typeof v === 'string' && byPath.has(v.replace(/^\.\//, ''))) {
+          candidates.push(v.replace(/^\.\//, ''));
+        }
+      };
+      add(pkg.main);
+      add(pkg.module);
+      if (pkg.bin && typeof pkg.bin === 'object') {
+        for (const v of Object.values(pkg.bin)) add(v);
+      } else {
+        add(pkg.bin);
+      }
+    } catch {
+      /* ignore malformed package.json */
+    }
+  }
+  const namePriority = [
+    /(^|\/)(index|main|app|cli|server|__main__)\.[a-z]+$/i,
+    /readme\.md$/i,
+  ];
+  for (const re of namePriority) {
+    for (const f of inv.files) {
+      if (re.test(f.path) && !candidates.includes(f.path)) candidates.push(f.path);
+    }
+  }
+  return candidates.slice(0, 8);
+}
+
+/** A deterministic guided-tour scaffold; the Claude skill enriches the prose. */
+function guidedTour(inv: Inventory): string {
+  const lines: string[] = [];
+  if (inv.mode === 'docs') {
+    lines.push(
+      'Read the documents in the order below. Each bullet is a suggested stop on the tour.',
+      '',
+    );
+    inv.docs.forEach((doc, i) => {
+      lines.push(`${i + 1}. **${doc.title}** — \`${doc.path}\``);
+    });
+    return lines.join('\n') + '\n';
+  }
+
+  const eps = entryPoints(inv);
+  lines.push('Suggested reading order to understand this codebase:', '');
+  let step = 1;
+  if (eps.length > 0) {
+    lines.push(`${step++}. **Start at the entry points:**`);
+    for (const ep of eps) lines.push(`   - \`${ep}\``);
+  }
+  const topModules = inv.modules
+    .filter((m) => m.codeFiles.length > 0)
+    .slice(0, 6);
+  if (topModules.length > 0) {
+    lines.push(`${step++}. **Walk the largest modules (by LOC):**`);
+    for (const m of topModules) {
+      lines.push(`   - \`${m.path}\` — ${m.codeFiles.length} code files, ${m.loc} LOC`);
+    }
+  }
+  if (inv.totals.test > 0) {
+    lines.push(
+      `${step++}. **Read the tests to learn intended behaviour:** ${inv.totals.test} test file(s); ` +
+        `the table above maps them to their targets.`,
+    );
+  } else {
+    lines.push(`${step++}. **⚠ No tests found** — treat behavioural assumptions with care.`);
+  }
+  return lines.join('\n') + '\n';
+}
+
+/** Render the full Markdown introspection report. */
+export function toMarkdown(inv: Inventory): string {
+  const t = inv.totals;
+  const sections: string[] = [];
+
+  sections.push(`# 🧭 Introspection: ${inv.name}`);
+  sections.push(
+    `> Generated by [introspector](https://github.com/fingerskier/introspector) on ` +
+      `${inv.generatedAt} · mode: **${inv.mode}**`,
+  );
+  sections.push('');
+  sections.push(
+    `**${t.files}** files · **${t.loc.toLocaleString()}** lines · ` +
+      `**${t.code}** code · **${t.test}** test · **${t.docs}** docs · ` +
+      `**${inv.modules.length}** modules`,
+  );
+
+  sections.push('\n## Mindmap\n');
+  sections.push('```mermaid\n' + toMermaid(inv) + '\n```');
+
+  sections.push('\n## Guided tour\n');
+  sections.push(guidedTour(inv));
+
+  sections.push('\n## Modules\n');
+  sections.push(moduleTable(inv.modules));
+
+  sections.push('\n## What is tested\n');
+  sections.push(
+    `Test coverage by file count: **${pct(t.test, t.code + t.test)}** of source-or-test files are tests.\n`,
+  );
+  sections.push(testTable(inv));
+
+  if (inv.docs.length > 0) {
+    sections.push('\n## Documentation outline\n');
+    sections.push(docOutline(inv));
+  }
+
+  sections.push('\n## Languages\n');
+  sections.push(topLangTable(inv.languages));
+
+  sections.push(
+    '\n---\n_This file is a deterministic baseline. Run the `introspect` skill ' +
+      'to enrich it with conceptual groupings and narrative._\n',
+  );
+
+  return sections.join('\n');
+}
