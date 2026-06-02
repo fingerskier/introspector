@@ -2,11 +2,11 @@
 Build a mindmap and guided tour of a repo
 
 ## Input -> Output
-* Give it a codebase
-  * creates a mindmap of concepts and modules
+* Run it a codebase
+  * creates/updates a mindmap of concepts and modules
   * shows whats tested and how
-* Give it documentation or prose
-  * creates a mindmap of concepts and chapters and/or sections
+* Run it documentation or prose
+  * creates/updated a mindmap of concepts and chapters and/or sections
 
 ## Usage
 * skills, hooks, agent template(s)
