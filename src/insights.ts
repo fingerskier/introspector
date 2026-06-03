@@ -19,11 +19,14 @@ export function buildInsights(inventory: Inventory, contents: Map<string, string
 
   const nodes: InsightNode[] = scored.map((n) => {
     const pt = coordById.get(n.id);
+    // layout() emits exactly one point per node id, so pt is always defined.
+    // Guard loudly rather than silently stacking nodes at the origin.
+    if (!pt) throw new Error(`layout produced no coordinate for node ${n.id}`);
     return {
       id: n.id,
       kind: n.kind,
       path: n.path,
-      layout: { x: pt ? pt.x : 0, y: pt ? pt.y : 0 },
+      layout: { x: pt.x, y: pt.y },
       scores: n.scores,
       flags: n.flags,
       notes: [],

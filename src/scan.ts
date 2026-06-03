@@ -21,6 +21,9 @@ export interface ScanOptions extends WalkOptions {
 
 const TEXT_KINDS = new Set(['code', 'test', 'docs', 'config', 'other']);
 
+/** Default cap on bytes read per file when scanning text content. */
+export const DEFAULT_MAX_READ_BYTES = 512 * 1024;
+
 function countLines(content: string): number {
   if (content === '') return 0;
   let lines = 1;
@@ -111,7 +114,7 @@ export function scan(root: string, options: ScanOptions = {}): Inventory {
   if (!stat.isDirectory()) {
     throw new Error(`Not a directory: ${absRoot}`);
   }
-  const maxReadBytes = options.maxReadBytes ?? 512 * 1024;
+  const maxReadBytes = options.maxReadBytes ?? DEFAULT_MAX_READ_BYTES;
 
   const { files: relPaths } = walk(absRoot, options);
 
@@ -227,7 +230,7 @@ export function scan(root: string, options: ScanOptions = {}): Inventory {
  */
 export function readTextContents(
   inventory: Inventory,
-  maxReadBytes = 512 * 1024,
+  maxReadBytes = DEFAULT_MAX_READ_BYTES,
 ): Map<string, string> {
   const contents = new Map<string, string>();
   for (const entry of inventory.files) {
