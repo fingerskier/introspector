@@ -37,3 +37,23 @@ test('all coordinates fall within the viewport bounds', () => {
 test('handles the empty case', () => {
   assert.deepEqual(layout([], []), []);
 });
+
+test('a single node centers in the viewport', () => {
+  const pts = layout([{ id: 'README.md', path: 'README.md' }], []);
+  assert.equal(pts.length, 1);
+  assert.equal(pts[0]!.x, VIEWPORT.width / 2);
+  assert.equal(pts[0]!.y, VIEWPORT.height / 2);
+});
+
+test('a single group (all root files) shares one centered column', () => {
+  const pts = layout(
+    [
+      { id: 'a.md', path: 'a.md' },
+      { id: 'b.md', path: 'b.md' },
+    ],
+    [],
+  );
+  for (const p of pts) assert.equal(p.x, VIEWPORT.width / 2);
+  // distinct rows
+  assert.notEqual(pts[0]!.y, pts[1]!.y);
+});
