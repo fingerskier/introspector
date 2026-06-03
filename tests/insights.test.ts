@@ -8,7 +8,7 @@ test('Insights shape serializes and round-trips losslessly', () => {
     kind: 'code',
     path: 'src/a.ts',
     layout: { x: 10, y: 20 },
-    scores: { size: 42, test: 1, docAmount: 0.5, structure: null, quality: null },
+    scores: { size: 42, test: 0, docAmount: 0.5, structure: null, quality: null },
     flags: ['untested'],
     notes: [],
   };
