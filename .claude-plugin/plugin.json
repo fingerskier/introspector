@@ -1,6 +1,6 @@
 {
   "name": "introspector",
-  "version": "0.1.0",
+  "version": "2026.6.3",
   "description": "Build a mindmap and guided tour of a repo or document set. Scans code or prose, then produces a Mermaid mindmap of concepts/modules and a guided reading tour.",
   "author": {
     "name": "fingerskier"
