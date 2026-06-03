@@ -84,3 +84,60 @@ export interface Inventory {
   docs: DocSection[];
   files: FileEntry[];
 }
+
+export type EdgeType = 'import' | 'contains' | 'tests' | 'flow' | 'link';
+
+export interface Edge {
+  /** Source node id (a FileEntry.path). */
+  from: string;
+  /** Target node id (a FileEntry.path). */
+  to: string;
+  type: EdgeType;
+}
+
+export interface NodeScores {
+  /** Raw extent: LOC (code) or word count (prose). */
+  size: number;
+  /** 0..1 test coverage; null when not applicable (prose/config). */
+  test: number | null;
+  /** 0..1; code: doc presence/comments; prose: completeness (stub→finished). */
+  docAmount: number;
+  /** 0..1; prose: link-integrity/orphan; code: cohesion (AI-filled, null until then). */
+  structure: number | null;
+  /** 0..1; AI-filled writing/doc quality; null renders neutral. */
+  quality: number | null;
+}
+
+/** A node after deterministic scoring, before layout/notes are attached. */
+export interface ScoredNode {
+  id: string;
+  kind: 'code' | 'doc';
+  path: string;
+  scores: NodeScores;
+  flags: string[];
+}
+
+export interface LayoutPoint {
+  id: string;
+  x: number;
+  y: number;
+}
+
+export interface InsightNode {
+  id: string;
+  kind: 'code' | 'doc';
+  path: string;
+  layout: { x: number; y: number };
+  scores: NodeScores;
+  /** Objective flags: 'untested' | 'oversized' | 'stub' | 'broken-link' | 'orphan'. */
+  flags: string[];
+  /** Short author-facing callouts (AI-filled). */
+  notes: string[];
+}
+
+export interface Insights {
+  generatedAt: string;
+  nodes: InsightNode[];
+  edges: Edge[];
+  meta: { nodeCount: number; edgeCount: number; aiEnriched: boolean };
+}
