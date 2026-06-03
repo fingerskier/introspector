@@ -1,0 +1,12 @@
+{
+  "name": "introspector",
+  "version": "0.1.0",
+  "description": "Build a mindmap and guided tour of a repo or document set. Scans code or prose, then produces a Mermaid mindmap of concepts/modules and a guided reading tour.",
+  "author": {
+    "name": "fingerskier"
+  },
+  "homepage": "https://github.com/fingerskier/introspector",
+  "repository": "https://github.com/fingerskier/introspector",
+  "license": "Apache-2.0",
+  "keywords": ["mindmap", "guided-tour", "codebase", "documentation", "introspection"]
+}
