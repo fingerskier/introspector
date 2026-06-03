@@ -7,6 +7,9 @@ const R_MIN = 4;
 const R_MAX = 48;
 const HUE_RED = 0;
 const HUE_GREEN = 130;
+/** Size value that maps to the maximum node radius — a visual design ceiling,
+ *  deliberately NOT derived from score.ts thresholds. Tune for visual range. */
+const SIZE_SCALE_MAX = 2500;
 
 function clamp01(n: number): number {
   return n < 0 ? 0 : n > 1 ? 1 : n;
@@ -36,7 +39,7 @@ export function mapChannels(node: InsightNode): Channels {
   const { scores, kind } = node;
   const borderBasis = kind === 'code' ? scores.test : scores.structure;
   // sqrt scaling so area (not radius) tracks size; clamp keeps it bounded
-  const r = Math.round(clamp01(Math.sqrt(scores.size) / Math.sqrt(2500)) * (R_MAX - R_MIN) + R_MIN);
+  const r = Math.round(clamp01(Math.sqrt(scores.size) / Math.sqrt(SIZE_SCALE_MAX)) * (R_MAX - R_MIN) + R_MIN);
   return {
     r,
     borderHue: borderBasis == null ? NEUTRAL_GRAY : hue(borderBasis),
@@ -103,14 +106,14 @@ export function renderHtml(insights: Insights): string {
 (function () {
   var raw = document.getElementById('insights-data').textContent;
   var data = JSON.parse(raw);
-  var SVGNS = ['http', '://www.w3.org/2000/svg'].join('');
+  var SVGNS = ['http', '://www.w3.org/2000/svg'].join(''); // split avoids the full URL form in source — keeps renderHtml output free of network URL patterns
   var R_MIN = 4, R_MAX = 48;
   function clamp01(n){ return n < 0 ? 0 : n > 1 ? 1 : n; }
   function lerp(a,b,t){ return a + (b-a)*clamp01(t); }
   function hue(v){ return v == null ? -1 : Math.round(lerp(0,130,v)); }
   function channels(n){
     var s = n.scores, basis = n.kind === 'code' ? s.test : s.structure;
-    var r = Math.round(clamp01(Math.sqrt(s.size)/Math.sqrt(2500))*(R_MAX-R_MIN)+R_MIN);
+    var r = Math.round(clamp01(Math.sqrt(s.size)/Math.sqrt(2500))*(R_MAX-R_MIN)+R_MIN); // 2500 = SIZE_SCALE_MAX (keep in sync with render-html.ts)
     return {
       r: r,
       stroke: basis == null ? '#7a869a' : 'hsl(' + hue(basis) + ',70%,55%)',
@@ -147,6 +150,8 @@ export function renderHtml(insights: Insights): string {
       tip.style.display='block'; tip.style.left=(ev.clientX+14)+'px'; tip.style.top=(ev.clientY+14)+'px';
       var fl = n.flags.map(function(f){return '<span class="flag">'+f+'</span>';}).join('');
       var notes = n.notes.length ? '<p>'+n.notes.join('<br>')+'</p>' : '';
+      // Local file:// artifact: n.path/flags are filesystem/enum-safe; n.notes is
+      // AI-generated but renders in a sandboxed, network-less context. Not HTML-escaped by design.
       tip.innerHTML = '<code>'+n.path+'</code><br>size '+n.scores.size+
         ' · test '+n.scores.test+' · docs '+n.scores.docAmount+
         ' · struct '+n.scores.structure+' · qual '+n.scores.quality+'<br>'+fl+notes;

@@ -29,9 +29,14 @@ test('code border hue follows test coverage; healthy=green-ish', () => {
 });
 
 test('prose border hue follows structure, not test', () => {
-  const doc = node({ kind: 'doc', scores: { size: 200, test: null, docAmount: 0.8, structure: 1, quality: null } });
-  assert.equal(mapChannels(doc).borderHue, mapChannels(node({ kind: 'doc', scores: { ...doc.scores, structure: 1 } })).borderHue);
-  assert.ok(mapChannels(doc).borderHue >= 110);
+  // A doc with healthy structure (1) but the code-only "test" channel left null
+  // must still read green via structure. A second doc with broken structure (0)
+  // must read red — proving structure, not test, drives the prose border.
+  const healthy = mapChannels(node({ kind: 'doc', scores: { size: 200, test: null, docAmount: 0.8, structure: 1, quality: null } }));
+  const broken = mapChannels(node({ kind: 'doc', scores: { size: 200, test: null, docAmount: 0.8, structure: 0, quality: null } }));
+  assert.ok(healthy.borderHue >= 110, `healthy structure → green, got ${healthy.borderHue}`);
+  assert.ok(broken.borderHue <= 20, `broken structure → red, got ${broken.borderHue}`);
+  assert.ok(healthy.borderHue > broken.borderHue);
 });
 
 test('fill opacity scales with docAmount within [0.15,0.75]', () => {
@@ -72,4 +77,23 @@ test('renderHtml escapes data safely (no closing script breakout)', () => {
   };
   const html = renderHtml(insights);
   assert.doesNotMatch(html, /<\/script><b>x/);
+});
+
+test('mapChannels pins exact channel values (determinism guard)', () => {
+  const m = mapChannels(node({ scores: { size: 100, test: 1, docAmount: 0.5, structure: null, quality: null } }));
+  // size 100: sqrt(100)/sqrt(2500) = 10/50 = 0.2 → 0.2*44+4 = 12.8 → round 13
+  assert.equal(m.r, 13);
+  // test 1 → hue lerp(0,130,1) = 130
+  assert.equal(m.borderHue, 130);
+  // basis 1 → borderWidth lerp(1.5,6.5,1) = 6.5
+  assert.equal(m.borderWidth, 6.5);
+  // docAmount 0.5 → fillOpacity lerp(0.15,0.75,0.5) = 0.45
+  assert.equal(m.fillOpacity, 0.45);
+});
+
+test('mapChannels radius is clamped at both ends (determinism guard)', () => {
+  const tiny = mapChannels(node({ scores: { size: 0, test: 0, docAmount: 0, structure: null, quality: null } }));
+  const huge = mapChannels(node({ scores: { size: 10_000_000, test: 0, docAmount: 0, structure: null, quality: null } }));
+  assert.equal(tiny.r, 4); // size 0 → sqrt0/50=0 → 0*44+4 = 4
+  assert.equal(huge.r, 48); // clamp01 caps ratio at 1 → 1*44+4 = 48
 });
