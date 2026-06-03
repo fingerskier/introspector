@@ -91,3 +91,52 @@ test('never throws on unreadable/missing content', () => {
   const inventory = inv([['src/a.ts', 'code']]);
   assert.doesNotThrow(() => extractEdges(inventory, new Map()));
 });
+
+test('extracts markdown links to in-repo files as link edges', () => {
+  const inventory = inv([['docs/a.md', 'docs'], ['docs/b.md', 'docs']]);
+  inventory.docs = [
+    { path: 'docs/a.md', title: 'A', headings: [] },
+    { path: 'docs/b.md', title: 'B', headings: [] },
+  ];
+  const contents = new Map([
+    ['docs/a.md', '# A\n\nSee [B](./b.md) and [ext](https://x.com).\n'],
+    ['docs/b.md', '# B\n'],
+  ]);
+  const links = extractEdges(inventory, contents).filter((e) => e.type === 'link');
+  assert.deepEqual(links, [{ from: 'docs/a.md', to: 'docs/b.md', type: 'link' }]);
+});
+
+test('emits flow edges in document reading order', () => {
+  const inventory = inv([['ch1.md', 'docs'], ['ch2.md', 'docs'], ['ch3.md', 'docs']]);
+  inventory.docs = [
+    { path: 'ch1.md', title: 'One', headings: [] },
+    { path: 'ch2.md', title: 'Two', headings: [] },
+    { path: 'ch3.md', title: 'Three', headings: [] },
+  ];
+  const flow = extractEdges(inventory, new Map()).filter((e) => e.type === 'flow');
+  assert.deepEqual(flow, [
+    { from: 'ch1.md', to: 'ch2.md', type: 'flow' },
+    { from: 'ch2.md', to: 'ch3.md', type: 'flow' },
+  ]);
+});
+
+test('an index/readme file contains its directory siblings', () => {
+  const inventory = inv([
+    ['docs/README.md', 'docs'],
+    ['docs/a.md', 'docs'],
+    ['docs/b.md', 'docs'],
+  ]);
+  inventory.docs = [
+    { path: 'docs/README.md', title: 'Readme', headings: [] },
+    { path: 'docs/a.md', title: 'A', headings: [] },
+    { path: 'docs/b.md', title: 'B', headings: [] },
+  ];
+  const contains = extractEdges(inventory, new Map()).filter((e) => e.type === 'contains');
+  assert.deepEqual(
+    contains.sort((x, y) => x.to.localeCompare(y.to)),
+    [
+      { from: 'docs/README.md', to: 'docs/a.md', type: 'contains' },
+      { from: 'docs/README.md', to: 'docs/b.md', type: 'contains' },
+    ],
+  );
+});
