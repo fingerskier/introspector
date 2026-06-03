@@ -4,3 +4,6 @@ dist/
 
 # Generated introspection output
 .introspector/
+
+# brainstorming visual companion
+.superpowers/
