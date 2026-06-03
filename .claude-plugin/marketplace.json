@@ -1,4 +1,5 @@
 {
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "introspector",
   "owner": {
     "name": "fingerskier"
@@ -10,8 +11,13 @@
   "plugins": [
     {
       "name": "introspector",
-      "source": "./",
-      "description": "Build a mindmap and guided tour of a repo or document set."
+      "description": "Build a mindmap and guided tour of a repo or document set.",
+      "source": {
+        "source": "github",
+        "repo": "fingerskier/introspector",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/fingerskier/introspector"
     }
   ]
 }
