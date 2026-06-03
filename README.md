@@ -21,7 +21,7 @@ its own.
 - **Run it on documentation or prose**
   - creates/updates a mindmap of concepts and chapters and/or sections
 
-The artifacts are written to `<target>/.introspector/`:
+The artifacts are written to `./.introspector/` in the current repo (overwritten on re-run):
 
 | File | What it is |
 | --- | --- |
@@ -33,7 +33,7 @@ The artifacts are written to `<target>/.introspector/`:
 
 **Scan deterministically, then enrich semantically.**
 
-1. The TypeScript scanner walks the target (respecting `.gitignore`), classifies
+1. The TypeScript scanner walks the current repo (respecting `.gitignore`), classifies
    every file (code / test / docs / config / asset), groups files into modules,
    links test files to the sources they likely exercise, and extracts document
    heading outlines. It emits a deterministic baseline mindmap and `inventory.json`.
@@ -57,8 +57,8 @@ This repo is itself a plugin marketplace. Add it and install:
 
 Then, in any project:
 
-- Run the slash command: `/introspect [path] [--mode code|docs|mixed]`
-- Or just ask: *"introspect this repo"* / *"give me a guided tour of `src/`"*
+- Run the slash command: `/introspect [--mode code|docs|mixed]`
+- Or just ask: *"introspect this repo"* / *"give me a guided tour"*
 - Or delegate to the `introspector` subagent for a hands-off pass.
 
 When a project already has a `.introspector/mindmap.md`, the bundled **SessionStart
@@ -69,20 +69,21 @@ hook** surfaces it automatically so Claude starts oriented.
 Requires **Node.js ≥ 22.18** (the scanner runs TypeScript directly via type
 stripping — no build step needed).
 
+The CLI always scans the current working directory and writes into `./.introspector/`.
+
 ```bash
-# scan the current directory
-node src/cli.ts .
+# scan the current repo
+node src/cli.ts
 
-# scan another path, also emit inventory.json
-node src/cli.ts path/to/project --json
+# also emit inventory.json
+node src/cli.ts --json
 
-# force a mode, or just print the report
-node src/cli.ts ./docs --mode docs
-node src/cli.ts . --stdout
+# force a mode, or just print the report to stdout
+node src/cli.ts --mode docs
+node src/cli.ts --stdout
 ```
 
-Options: `-o, --out <dir>` (default `.introspector`), `-m, --mode code|docs|mixed|auto`,
-`--json`, `--stdout`, `-h, --help`.
+Options: `-m, --mode code|docs|mixed|auto`, `--json`, `--stdout`, `-h, --help`.
 
 ### As a library
 

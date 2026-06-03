@@ -25,17 +25,17 @@ writing the narrative.
 
 ## Step 1 — Run the scanner
 
-The scanner walks the target (respecting `.gitignore`), classifies files, groups
-modules, links tests to their targets, and extracts document outlines. It writes a
-deterministic baseline you will build on.
+The scanner walks the current working directory (respecting `.gitignore`),
+classifies files, groups modules, links tests to their targets, and extracts
+document outlines. It writes a deterministic baseline you will build on.
 
 ```bash
-node "${CLAUDE_PLUGIN_ROOT}/src/cli.ts" <target-path> --json
+node "${CLAUDE_PLUGIN_ROOT}/src/cli.ts" --json
 ```
 
-- Default target is the current directory; pass a path to scan elsewhere.
+- The scan always targets the current repo (the directory Claude is running in).
 - Add `--mode code|docs|mixed` only to override auto-detection.
-- Outputs land in `<target>/.introspector/`:
+- Outputs land in `./.introspector/` and re-running overwrites them in place:
   - `mindmap.md` — baseline report (Mermaid mindmap + tour + tables)
   - `mindmap.mmd` — the raw Mermaid diagram
   - `inventory.json` — the structured inventory you will read next
@@ -46,7 +46,7 @@ node "${CLAUDE_PLUGIN_ROOT}/src/cli.ts" <target-path> --json
 
 ## Step 2 — Read the inventory
 
-Read `<target>/.introspector/inventory.json`. It gives you, without re-reading the
+Read `./.introspector/inventory.json`. It gives you, without re-reading the
 whole tree: totals, languages, `modules[]` (with code/test/doc files and LOC),
 `tests[]` (each test mapped to likely target sources), and `docs[]` (per-document
 heading outlines). Use it to decide which files are worth opening.
@@ -70,7 +70,7 @@ file. Group aggressively; a mindmap is a map, not a file listing.
 
 ## Step 4 — Write the enriched artifact
 
-Overwrite `<target>/.introspector/mindmap.md` with your enriched version. Preserve
+Overwrite `./.introspector/mindmap.md` with your enriched version. Preserve
 the structure so it stays diffable and re-runnable:
 
 1. A short title + one-paragraph summary of what this project *is*.
@@ -88,7 +88,7 @@ prose and only revise what changed.
 
 ## Step 5 — Report back
 
-Tell the user where the artifact is (`<target>/.introspector/mindmap.md`), show the
+Tell the user where the artifact is (`./.introspector/mindmap.md`), show the
 Mermaid mindmap inline so it renders, and offer to commit it or go deeper on any
 branch of the map.
 

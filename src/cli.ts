@@ -7,34 +7,28 @@ import { toMermaid } from './mindmap.ts';
 import type { Mode } from './types.ts';
 
 interface CliArgs {
-  target: string;
-  outDir: string;
   mode: Mode | 'auto';
   json: boolean;
   stdout: boolean;
   help: boolean;
 }
 
+/** Fixed output directory, always written into the current working directory. */
+const OUT_DIR = '.introspector';
+
 function parseArgs(argv: string[]): CliArgs {
   const args: CliArgs = {
-    target: '.',
-    outDir: '.introspector',
     mode: 'auto',
     json: false,
     stdout: false,
     help: false,
   };
-  const positionals: string[] = [];
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i]!;
     switch (a) {
       case '-h':
       case '--help':
         args.help = true;
-        break;
-      case '-o':
-      case '--out':
-        args.outDir = argv[++i] ?? args.outDir;
         break;
       case '-m':
       case '--mode': {
@@ -50,30 +44,27 @@ function parseArgs(argv: string[]): CliArgs {
         args.stdout = true;
         break;
       default:
-        if (a.startsWith('-')) throw new Error(`Unknown flag: ${a}`);
-        positionals.push(a);
+        throw new Error(`Unknown argument: ${a}`);
     }
   }
-  if (positionals[0]) args.target = positionals[0];
   return args;
 }
 
-const HELP = `introspector — build a mindmap and guided tour of a repo or document set
+const HELP = `introspector — build a mindmap and guided tour of the current repo or document set
+
+Always scans the current working directory and writes into ./${OUT_DIR}.
+Re-running overwrites the artifacts in place.
 
 Usage:
-  introspector [path] [options]
-
-Arguments:
-  path                 Directory to scan (default: current directory)
+  introspector [options]
 
 Options:
-  -o, --out <dir>      Output directory (default: .introspector)
   -m, --mode <mode>    Force mode: code | docs | mixed | auto (default: auto)
       --json           Also write inventory.json
       --stdout         Print the Markdown report to stdout instead of writing files
   -h, --help           Show this help
 
-Outputs (written into --out):
+Outputs (written into ./${OUT_DIR}):
   mindmap.md           Markdown report with an embedded Mermaid mindmap + guided tour
   mindmap.mmd          The raw Mermaid mindmap diagram
   inventory.json       Structured inventory (with --json)
@@ -94,12 +85,7 @@ function main(): void {
     return;
   }
 
-  const target = path.resolve(args.target);
-  if (!fs.existsSync(target)) {
-    process.stderr.write(`Error: path does not exist: ${target}\n`);
-    process.exit(1);
-    return;
-  }
+  const target = process.cwd();
 
   const inv = scan(target, { mode: args.mode });
   const markdown = toMarkdown(inv);
@@ -109,7 +95,7 @@ function main(): void {
     return;
   }
 
-  const outDir = path.resolve(args.outDir);
+  const outDir = path.join(target, OUT_DIR);
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'mindmap.md'), markdown);
   fs.writeFileSync(path.join(outDir, 'mindmap.mmd'), toMermaid(inv) + '\n');
@@ -117,11 +103,10 @@ function main(): void {
     fs.writeFileSync(path.join(outDir, 'inventory.json'), JSON.stringify(inv, null, 2));
   }
 
-  const rel = path.relative(process.cwd(), outDir) || '.';
   process.stdout.write(
     `Introspected ${inv.name} (${inv.mode} mode): ${inv.totals.files} files, ` +
       `${inv.modules.length} modules, ${inv.totals.test} tests.\n` +
-      `Wrote ${rel}/mindmap.md${args.json ? `, ${rel}/inventory.json` : ''}.\n`,
+      `Wrote ./${OUT_DIR}/mindmap.md${args.json ? `, ./${OUT_DIR}/inventory.json` : ''}.\n`,
   );
 }
 
