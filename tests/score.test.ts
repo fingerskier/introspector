@@ -88,3 +88,19 @@ test('config and asset files are skipped (no nodes)', () => {
   const nodes = scoreNodes(inv([['package.json', 'config', 1], ['logo.png', 'asset', 0]]), [], new Map());
   assert.equal(nodes.length, 0);
 });
+
+test('a resolved parent-directory link is NOT counted as broken', () => {
+  const inventory = inv(
+    [['README.md', 'docs', 1], ['docs/guide.md', 'docs', 1]],
+    [],
+    [{ path: 'README.md', title: 'Root', headings: [] }, { path: 'docs/guide.md', title: 'Guide', headings: [] }],
+  );
+  const contents = new Map([
+    ['README.md', '# Root\n'],
+    ['docs/guide.md', '# Guide\n\nSee [root](../README.md).\n'],
+  ]);
+  const edges = [{ from: 'docs/guide.md', to: 'README.md', type: 'link' as const }];
+  const guide = scoreNodes(inventory, edges, contents).find((n) => n.id === 'docs/guide.md')!;
+  assert.ok(!guide.flags.includes('broken-link'));
+  assert.equal(guide.scores.structure, 1);
+});

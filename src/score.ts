@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { Edge, Inventory, NodeScores, ScoredNode } from './types.ts';
 
 export const OVERSIZED_LOC = 400;
@@ -20,19 +21,21 @@ function countWords(content: string): number {
 
 function commentRatio(content: string): number {
   const lines = content.split(/\r?\n/);
-  if (lines.length === 0) return 0;
   let comments = 0;
   for (const line of lines) if (COMMENT_LINE_RE.test(line)) comments++;
   return comments / lines.length;
 }
 
-/** True if `spec` corresponds to one of the resolved link-edge targets. */
-function isResolvedLink(spec: string, resolved: Set<string>): boolean {
-  const norm = spec.replace(/^\.\//, '');
-  for (const r of resolved) {
-    if (r === norm || r.endsWith('/' + norm)) return true;
-  }
-  return false;
+/**
+ * True if a markdown link `spec` from `fromFile` resolves to one of the
+ * already-resolved `link` edge targets. The spec is normalized to a canonical
+ * repo-relative path (mirroring edges.ts resolution) so that `./`, `../`, and
+ * nested-directory links all compare correctly.
+ */
+function isResolvedLink(fromFile: string, spec: string, resolved: Set<string>): boolean {
+  const baseDir = path.posix.dirname(fromFile);
+  const norm = path.posix.normalize(path.posix.join(baseDir, spec)).replace(/^\.\//, '');
+  return resolved.has(norm);
 }
 
 /**
@@ -71,6 +74,7 @@ export function scoreNodes(
     if (kind === 'code') {
       scores.size = entry.loc;
       scores.test = testedSources.has(entry.path) ? 1 : 0;
+      // ~20% comment density maps to a full docAmount score.
       scores.docAmount = clamp01(commentRatio(content) * 5);
       if (scores.test === 0) flags.push('untested');
       if (entry.loc > OVERSIZED_LOC) flags.push('oversized');
@@ -86,10 +90,11 @@ export function scoreNodes(
       const resolved = new Set(
         edges.filter((e) => e.from === entry.path && e.type === 'link').map((e) => e.to),
       );
+      // Heuristic: also scans links inside fenced code blocks — acceptable by design.
       const internal = [...content.matchAll(MD_LINK_TARGET_RE)]
         .map((m) => m[1]!)
         .filter((t) => !/^[a-z]+:/i.test(t) && !t.startsWith('#'));
-      const brokenCount = internal.filter((t) => !isResolvedLink(t, resolved)).length;
+      const brokenCount = internal.filter((t) => !isResolvedLink(entry.path, t, resolved)).length;
       if (brokenCount > 0) flags.push('broken-link');
       scores.structure = clamp01(1 - 0.25 * brokenCount);
     }
