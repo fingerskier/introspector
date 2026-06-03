@@ -21,6 +21,9 @@ export interface ScanOptions extends WalkOptions {
 
 const TEXT_KINDS = new Set(['code', 'test', 'docs', 'config', 'other']);
 
+/** Default cap on bytes read per file when scanning text content. */
+export const DEFAULT_MAX_READ_BYTES = 512 * 1024;
+
 function countLines(content: string): number {
   if (content === '') return 0;
   let lines = 1;
@@ -111,7 +114,7 @@ export function scan(root: string, options: ScanOptions = {}): Inventory {
   if (!stat.isDirectory()) {
     throw new Error(`Not a directory: ${absRoot}`);
   }
-  const maxReadBytes = options.maxReadBytes ?? 512 * 1024;
+  const maxReadBytes = options.maxReadBytes ?? DEFAULT_MAX_READ_BYTES;
 
   const { files: relPaths } = walk(absRoot, options);
 
@@ -218,4 +221,26 @@ export function scan(root: string, options: ScanOptions = {}): Inventory {
     docs: docs.sort((a, b) => a.path.localeCompare(b.path)),
     files,
   };
+}
+
+/**
+ * Read the text contents of every text-kind file in an inventory into a map
+ * keyed by relative path. Best-effort: unreadable or oversized files are
+ * skipped, never thrown. Used to feed the edges/score passes.
+ */
+export function readTextContents(
+  inventory: Inventory,
+  maxReadBytes = DEFAULT_MAX_READ_BYTES,
+): Map<string, string> {
+  const contents = new Map<string, string>();
+  for (const entry of inventory.files) {
+    if (!TEXT_KINDS.has(entry.kind)) continue;
+    if (entry.size > maxReadBytes) continue;
+    try {
+      contents.set(entry.path, fs.readFileSync(path.join(inventory.root, entry.path), 'utf8'));
+    } catch {
+      /* skip unreadable file */
+    }
+  }
+  return contents;
 }

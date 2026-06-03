@@ -86,11 +86,43 @@ the structure so it stays diffable and re-runnable:
 If a prior `mindmap.md` exists, treat this as an **update**: preserve still-accurate
 prose and only revise what changed.
 
+## Step 4b — Enrich the insight graph (AIproc)
+
+The scanner also writes `./.introspector/insights.json` (data + objective
+scores) and a self-contained `./.introspector/insights.html`. Three of the four
+visual channels are already meaningful from the deterministic pass (size, test
+coverage, documentation amount, prose structure). Your job is to fill the
+**judgment-only** fields the heuristics cannot:
+
+1. Read `insights.json`. Focus on nodes carrying `flags`
+   (`untested`, `oversized`, `stub`, `broken-link`, `orphan`) and on the
+   largest nodes — those are where author attention pays off.
+2. Open a representative sample of those files (do **not** read everything).
+3. For each sampled node, set judgment fields — and only these:
+   - `scores.quality` (0..1) — code: documentation/comment quality; prose:
+     writing quality. This drives the fill **hue** (gray until you set it).
+   - `scores.structure` (0..1) for **code** nodes — cohesion / "doing too
+     much" / layering (prose `structure` is already computed; leave it).
+   - `notes[]` — one or two short, specific, author-facing callouts.
+   - You may add subjective `flags` (e.g. `god-object`, `unclear-name`); keep
+     the objective ones the scanner set.
+4. Set `meta.aiEnriched` to `true`.
+5. Re-render: rebuild `insights.html` from the updated `insights.json` using the
+   bundled renderer so the page reflects your judgments:
+
+   ```bash
+   node --experimental-strip-types -e "import('${CLAUDE_PLUGIN_ROOT}/src/render-html.ts').then(m => { const fs = require('fs'); const i = JSON.parse(fs.readFileSync('./.introspector/insights.json','utf8')); fs.writeFileSync('./.introspector/insights.html', m.renderHtml(i)); })"
+   ```
+
+Leave deterministic fields (`size`, `test`, `docAmount`, prose `structure`,
+objective flags) untouched — re-running the scanner recomputes them and will
+overwrite AI fields, so the enrichment is the *last* step.
+
 ## Step 5 — Report back
 
-Tell the user where the artifact is (`./.introspector/mindmap.md`), show the
-Mermaid mindmap inline so it renders, and offer to commit it or go deeper on any
-branch of the map.
+Tell the user where the artifacts are (`./.introspector/mindmap.md` and the
+interactive `./.introspector/insights.html`), show the Mermaid mindmap inline so
+it renders, and offer to commit them or go deeper on any branch of the map.
 
 ## Notes
 

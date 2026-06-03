@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { scan } from './scan.ts';
+import { scan, readTextContents } from './scan.ts';
+import { buildInsights } from './insights.ts';
+import { renderHtml } from './render-html.ts';
 import { toMarkdown } from './report.ts';
 import { toMermaid } from './mindmap.ts';
 import type { Mode } from './types.ts';
@@ -67,6 +69,8 @@ Options:
 Outputs (written into ./${OUT_DIR}):
   mindmap.md           Markdown report with an embedded Mermaid mindmap + guided tour
   mindmap.mmd          The raw Mermaid mindmap diagram
+  insights.json        Scored insight-graph data (deterministic baseline)
+  insights.html        Self-contained interactive insight graph
   inventory.json       Structured inventory (with --json)
 `;
 
@@ -99,14 +103,27 @@ function main(): void {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'mindmap.md'), markdown);
   fs.writeFileSync(path.join(outDir, 'mindmap.mmd'), toMermaid(inv) + '\n');
+  // Insights are additive: the mindmap artifacts above are already on disk and
+  // self-contained, so a failure here degrades gracefully with a warning rather
+  // than aborting the run with a raw stack trace.
+  try {
+    const insights = buildInsights(inv, readTextContents(inv));
+    fs.writeFileSync(path.join(outDir, 'insights.json'), JSON.stringify(insights, null, 2));
+    fs.writeFileSync(path.join(outDir, 'insights.html'), renderHtml(insights));
+  } catch (err) {
+    process.stderr.write(
+      `Warning: failed to generate the insight graph: ${(err as Error).message}\n`,
+    );
+  }
   if (args.json) {
     fs.writeFileSync(path.join(outDir, 'inventory.json'), JSON.stringify(inv, null, 2));
   }
 
   process.stdout.write(
-    `Introspected ${inv.name} (${inv.mode} mode): ${inv.totals.files} files, ` +
+    `Introspected ${inv.name}: ${inv.totals.files} files, ` +
       `${inv.modules.length} modules, ${inv.totals.test} tests.\n` +
-      `Wrote ./${OUT_DIR}/mindmap.md${args.json ? `, ./${OUT_DIR}/inventory.json` : ''}.\n`,
+      `Wrote ./${OUT_DIR}/mindmap.md and ./${OUT_DIR}/insights.html` +
+      `${args.json ? `, ./${OUT_DIR}/inventory.json` : ''}.\n`,
   );
 }
 
