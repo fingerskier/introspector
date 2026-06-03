@@ -219,3 +219,25 @@ export function scan(root: string, options: ScanOptions = {}): Inventory {
     files,
   };
 }
+
+/**
+ * Read the text contents of every text-kind file in an inventory into a map
+ * keyed by relative path. Best-effort: unreadable or oversized files are
+ * skipped, never thrown. Used to feed the edges/score passes.
+ */
+export function readTextContents(
+  inventory: Inventory,
+  maxReadBytes = 512 * 1024,
+): Map<string, string> {
+  const contents = new Map<string, string>();
+  for (const entry of inventory.files) {
+    if (!TEXT_KINDS.has(entry.kind)) continue;
+    if (entry.size > maxReadBytes) continue;
+    try {
+      contents.set(entry.path, fs.readFileSync(path.join(inventory.root, entry.path), 'utf8'));
+    } catch {
+      /* skip unreadable file */
+    }
+  }
+  return contents;
+}
