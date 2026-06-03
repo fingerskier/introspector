@@ -45,6 +45,7 @@ const JS_BARE_IMPORT_RE = /import\s*['"]([^'"]+)['"]/g;
 const JS_REQUIRE_RE = /require\(\s*['"]([^'"]+)['"]\s*\)/g;
 const PY_FROM_RE = /^\s*from\s+([.\w]+)\s+import\s/gm;
 const PY_IMPORT_RE = /^\s*import\s+([.\w]+)/gm;
+// Heuristic: also matches links inside fenced code blocks — acceptable by design.
 const MD_LINK_RE = /\[[^\]]*\]\(\s*([^)\s]+)[^)]*\)/g;
 const INDEX_FILE_RE = /(^|\/)(index|readme|__init__|mod)\.[a-z0-9]+$/i;
 
@@ -82,7 +83,7 @@ function linkEdges(file: string, content: string, fileSet: Set<string>): Edge[] 
   const seen = new Set<string>();
   for (const m of content.matchAll(MD_LINK_RE)) {
     let spec = m[1]!;
-    if (/^[a-z]+:/i.test(spec) || spec.startsWith('#') || spec.startsWith('mailto:')) continue;
+    if (/^[a-z]+:/i.test(spec) || spec.startsWith('#')) continue;
     spec = spec.split('#')[0]!.split('?')[0]!;
     if (spec === '') continue;
     const to = resolveRelative(file, spec, fileSet);
@@ -94,6 +95,7 @@ function linkEdges(file: string, content: string, fileSet: Set<string>): Edge[] 
   return out;
 }
 
+// Edge order mirrors inventory.docs; meaningful only when the scanner preserves document order.
 function flowEdges(docPaths: string[]): Edge[] {
   const out: Edge[] = [];
   for (let i = 0; i < docPaths.length - 1; i++) {
