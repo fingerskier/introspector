@@ -103,9 +103,18 @@ function main(): void {
   fs.mkdirSync(outDir, { recursive: true });
   fs.writeFileSync(path.join(outDir, 'mindmap.md'), markdown);
   fs.writeFileSync(path.join(outDir, 'mindmap.mmd'), toMermaid(inv) + '\n');
-  const insights = buildInsights(inv, readTextContents(inv));
-  fs.writeFileSync(path.join(outDir, 'insights.json'), JSON.stringify(insights, null, 2));
-  fs.writeFileSync(path.join(outDir, 'insights.html'), renderHtml(insights));
+  // Insights are additive: the mindmap artifacts above are already on disk and
+  // self-contained, so a failure here degrades gracefully with a warning rather
+  // than aborting the run with a raw stack trace.
+  try {
+    const insights = buildInsights(inv, readTextContents(inv));
+    fs.writeFileSync(path.join(outDir, 'insights.json'), JSON.stringify(insights, null, 2));
+    fs.writeFileSync(path.join(outDir, 'insights.html'), renderHtml(insights));
+  } catch (err) {
+    process.stderr.write(
+      `Warning: failed to generate the insight graph: ${(err as Error).message}\n`,
+    );
+  }
   if (args.json) {
     fs.writeFileSync(path.join(outDir, 'inventory.json'), JSON.stringify(inv, null, 2));
   }

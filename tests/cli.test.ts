@@ -15,7 +15,7 @@ afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
 test('CLI writes insights.json and insights.html into .introspector', () => {
   fs.writeFileSync(path.join(dir, 'a.ts'), "import './b';\nexport const a = 1;\n");
   fs.writeFileSync(path.join(dir, 'b.ts'), 'export const b = 1;\n');
-  fs.writeFileSync(path.join(dir, 'README.md'), '# Demo\n\nplenty of words here to avoid being flagged as a stub document.\n');
+  fs.writeFileSync(path.join(dir, 'README.md'), '# Demo\n\nA short readme.\n');
 
   execFileSync(process.execPath, ['--experimental-strip-types', CLI], { cwd: dir });
 
@@ -24,6 +24,8 @@ test('CLI writes insights.json and insights.html into .introspector', () => {
   const htmlPath = path.join(out, 'insights.html');
   assert.ok(fs.existsSync(jsonPath), 'insights.json written');
   assert.ok(fs.existsSync(htmlPath), 'insights.html written');
+  assert.ok(fs.existsSync(path.join(out, 'mindmap.md')), 'mindmap.md still written');
+  assert.ok(fs.existsSync(path.join(out, 'mindmap.mmd')), 'mindmap.mmd still written');
 
   const insights = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
   assert.ok(Array.isArray(insights.nodes) && insights.nodes.length >= 2);
