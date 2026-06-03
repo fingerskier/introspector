@@ -10,7 +10,7 @@
   "plugins": [
     {
       "name": "introspector",
-      "source": ".",
+      "source": "./",
       "description": "Build a mindmap and guided tour of a repo or document set."
     }
   ]
